@@ -1,0 +1,31 @@
+[
+  {
+    "type": "entity",
+    "text": "MGMultiGateSolver",
+    "summary_cn": "倍增门解算器核心类"
+  },
+  {
+    "type": "entity",
+    "text": "MGSolver",
+    "summary_cn": "解算器简称"
+  },
+  {
+    "type": "rule",
+    "text": "禁止直接修改 NativeArray 数据",
+    "summary_cn": "NativeArray只读保护规则",
+    "trigger_context": "修改解算器数据时",
+    "consequence": "可能导致崩溃或数据损坏"
+  },
+  {
+    "type": "constraint",
+    "text": "必须使用 AddCommand 接口",
+    "summary_cn": "命令接口强制约束",
+    "reason": "保证线程安全和执行顺序"
+  },
+  {
+    "type": "relation",
+    "from": "MGMultiGateSolver",
+    "to": "AddCommand",
+    "relation_type": "uses"
+  }
+]

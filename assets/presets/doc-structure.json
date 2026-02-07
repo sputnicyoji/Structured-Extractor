@@ -1,0 +1,20 @@
+{
+  "name": "doc-structure",
+  "description": "文档/合同/规范结构化提取",
+  "focus_types": ["entity", "relation", "rule", "constraint"],
+  "pipeline_config": {
+    "source_grounding": true,
+    "overlap_dedup": true,
+    "confidence_scoring": true,
+    "entity_resolution": true,
+    "relation_inference": true,
+    "kg_injection": true
+  },
+  "few_shot_key": "document",
+  "extraction_hints": {
+    "entity": "关注专有名词、角色定义、组织机构、系统名称",
+    "relation": "关注隶属、管理、协作、依赖关系",
+    "rule": "关注条件规则、审批流程、决策逻辑",
+    "constraint": "关注金额限制、时间约束、资格要求、禁止条款"
+  }
+}

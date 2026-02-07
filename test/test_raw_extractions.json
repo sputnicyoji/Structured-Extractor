@@ -1,0 +1,134 @@
+[
+  {
+    "id": "ext_001",
+    "type": "entity",
+    "text": "public struct FormationGenerator",
+    "summary_cn": "阵型生成器结构体",
+    "attributes": {
+      "entity_name": "FormationGenerator",
+      "entity_kind": "class",
+      "namespace": "X1.ScriptGame.MGMultiGate"
+    },
+    "source_file": "FormationGenerator.cs"
+  },
+  {
+    "id": "ext_002",
+    "type": "constraint",
+    "text": "if (area.x <= bounds.x || area.y <= bounds.y)",
+    "summary_cn": "当生成区域小于碰撞体大小时，所有单位放在中心点",
+    "attributes": {
+      "check_type": "boundary",
+      "condition_cn": "SpawnArea 小于等于碰撞体大小时避免负数偏移",
+      "action": "return",
+      "severity": "error"
+    },
+    "source_file": "FormationGenerator.cs"
+  },
+  {
+    "id": "ext_003",
+    "type": "rule",
+    "text": "m_ColumnCount = Mathf.CeilToInt(Mathf.Sqrt(spwanCount))",
+    "summary_cn": "阵型列数由单位总数开方向上取整决定",
+    "attributes": {
+      "condition": "spwanCount > 0",
+      "action": "计算列数 = ceil(sqrt(spwanCount))"
+    },
+    "source_file": "FormationGenerator.cs"
+  },
+  {
+    "id": "ext_004",
+    "type": "rule",
+    "text": "m_RowCount = Mathf.CeilToInt(((float)spwanCount) / m_ColumnCount)",
+    "summary_cn": "阵型行数由单位总数除以列数向上取整决定",
+    "attributes": {
+      "condition": "m_ColumnCount > 0",
+      "action": "计算行数 = ceil(spwanCount / columnCount)"
+    },
+    "source_file": "FormationGenerator.cs"
+  },
+  {
+    "id": "ext_005",
+    "type": "entity",
+    "text": "private const float MaxRandomOffsetRatio = 1.5f",
+    "summary_cn": "最大随机偏移比例常量",
+    "attributes": {
+      "entity_name": "MaxRandomOffsetRatio",
+      "entity_kind": "concept",
+      "description": "控制单位在格子内的随机偏移幅度上限"
+    },
+    "source_file": "FormationGenerator.cs"
+  },
+  {
+    "id": "ext_006",
+    "type": "rule",
+    "text": "m_MaxRandomDistance = Mathf.Max(m_CellWidth, m_CellHeight) * MaxRandomOffsetRatio",
+    "summary_cn": "最大随机距离由较大的格子边长乘以偏移比例决定",
+    "attributes": {
+      "condition": "格子宽高已计算",
+      "action": "MaxRandomDistance = max(cellW, cellH) * 1.5"
+    },
+    "source_file": "FormationGenerator.cs"
+  },
+  {
+    "id": "ext_007",
+    "type": "relation",
+    "text": "private SceneBounds m_AreaBounds",
+    "summary_cn": "FormationGenerator 依赖 SceneBounds 进行位置裁剪",
+    "attributes": {
+      "from_entity": "FormationGenerator",
+      "to_entity": "SceneBounds",
+      "relation_type": "depends_on",
+      "strength": "strong"
+    },
+    "source_file": "FormationGenerator.cs"
+  },
+  {
+    "id": "ext_008",
+    "type": "relation",
+    "text": "using X1.ScriptGame.MGMultiGate.Solver",
+    "summary_cn": "FormationGenerator 引用 Solver 命名空间",
+    "attributes": {
+      "from_entity": "FormationGenerator",
+      "to_entity": "MGMultiGate.Solver",
+      "relation_type": "depends_on",
+      "strength": "weak"
+    },
+    "source_file": "FormationGenerator.cs"
+  },
+  {
+    "id": "ext_009",
+    "type": "state",
+    "text": "m_Random = new Random((uint)levelConfigID)",
+    "summary_cn": "初始化阶段：用关卡配置ID设置随机种子",
+    "attributes": {
+      "from_state": "未初始化",
+      "to_state": "已初始化",
+      "trigger": "Initialize(levelConfigID) 调用"
+    },
+    "source_file": "FormationGenerator.cs"
+  },
+  {
+    "id": "ext_010",
+    "type": "constraint",
+    "text": "index < spwanCount",
+    "summary_cn": "生成位置数量不能超过指定的单位数",
+    "attributes": {
+      "check_type": "boundary",
+      "condition_cn": "循环索引不超过总生成数量",
+      "action": "continue",
+      "severity": "info"
+    },
+    "source_file": "FormationGenerator.cs"
+  },
+  {
+    "id": "ext_011",
+    "type": "entity",
+    "text": "FormationGenerator",
+    "summary_cn": "阵型生成器",
+    "attributes": {
+      "entity_name": "FormationGenerator",
+      "entity_kind": "class"
+    },
+    "source_file": "FormationGenerator.cs"
+  }
+]

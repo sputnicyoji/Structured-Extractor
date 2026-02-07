@@ -1,0 +1,20 @@
+{
+  "name": "code-logic",
+  "description": "C#/Python/JS 代码逻辑提取",
+  "focus_types": ["rule", "event", "state", "constraint"],
+  "pipeline_config": {
+    "source_grounding": true,
+    "overlap_dedup": true,
+    "confidence_scoring": true,
+    "entity_resolution": false,
+    "relation_inference": false,
+    "kg_injection": false
+  },
+  "few_shot_key": "code",
+  "extraction_hints": {
+    "rule": "关注 if/else, switch/case 中的业务决策，忽略纯技术检查",
+    "event": "关注 += 事件订阅、FireEvent、SendMessage 调用",
+    "state": "关注 SetState、SetStage、枚举赋值、bool 状态切换",
+    "constraint": "关注 null 检查、边界条件、提前 return/continue"
+  }
+}
