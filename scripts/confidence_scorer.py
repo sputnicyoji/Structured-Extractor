@@ -3,17 +3,17 @@ Confidence Scoring Module
 
 四维度加权评分系统：
 1. match_quality (35%): 匹配质量 (exact/normalized/fuzzy/none)
-2. attr_completeness (25%): 属性完整性
+2. attr_completeness (25%): 属性完整性 (type-aware)
 3. text_specificity (20%): 文本长度适中性 (10-200字符最佳)
-4. type_consistency (20%): 类型一致性
+4. type_consistency (20%): 类型与属性一致性
 """
 
 
 class ConfidenceScorer:
     """置信度评分器"""
 
-    # 权重配置
-    WEIGHTS = {
+    # 默认权重配置 (可通过构造函数覆盖)
+    DEFAULT_WEIGHTS = {
         "match_quality": 0.35,
         "attr_completeness": 0.25,
         "text_specificity": 0.20,
@@ -27,6 +27,33 @@ class ConfidenceScorer:
         "fuzzy": 0.6,
         "none": 0.1,
     }
+
+    # 每种类型的必填属性 (基于 extraction-types.md 规范)
+    REQUIRED_ATTRS = {
+        "rule": ["condition", "action"],
+        "event": ["event_type", "direction"],
+        "state": ["from_state", "to_state", "trigger"],
+        "constraint": ["check_type", "condition_cn"],
+        "entity": ["entity_name", "entity_kind"],
+        "relation": ["from_entity", "to_entity", "relation_type"],
+    }
+
+    # 每种类型的可选属性 (有则加分)
+    OPTIONAL_ATTRS = {
+        "rule": ["exception", "priority"],
+        "event": ["subscriber", "publisher", "handler", "payload"],
+        "state": ["guard_condition", "side_effect"],
+        "constraint": ["action", "severity"],
+        "entity": ["parent", "namespace", "description"],
+        "relation": ["direction", "strength"],
+    }
+
+    def __init__(self, weights: dict = None):
+        """
+        Args:
+            weights: 自定义权重配置 (可选)，键为维度名，值为权重 [0, 1]
+        """
+        self.weights = {**self.DEFAULT_WEIGHTS, **(weights or {})}
 
     def process(self, extractions: list[dict]) -> list[dict]:
         """
@@ -63,28 +90,30 @@ class ConfidenceScorer:
         match_type = ext.get('source_location', {}).get('match_type', 'none')
         match_quality = self.MATCH_SCORES.get(match_type, 0.1)
 
-        # 2. 属性完整性
+        # 2. 属性完整性 (type-aware)
         attr_completeness = self._calc_attr_completeness(ext)
 
         # 3. 文本长度适中性
         text_specificity = self._calc_text_specificity(ext)
 
-        # 4. 类型一致性（默认较高）
+        # 4. 类型与属性一致性
         type_consistency = self._calc_type_consistency(ext)
 
         # 加权求和
         score = (
-            self.WEIGHTS["match_quality"] * match_quality +
-            self.WEIGHTS["attr_completeness"] * attr_completeness +
-            self.WEIGHTS["text_specificity"] * text_specificity +
-            self.WEIGHTS["type_consistency"] * type_consistency
+            self.weights["match_quality"] * match_quality +
+            self.weights["attr_completeness"] * attr_completeness +
+            self.weights["text_specificity"] * text_specificity +
+            self.weights["type_consistency"] * type_consistency
         )
 
         return min(1.0, max(0.0, score))
 
     def _calc_attr_completeness(self, ext: dict) -> float:
         """
-        属性完整性评分
+        Type-aware 属性完整性评分
+
+        根据提取类型检查必填和可选属性的覆盖率。
 
         Args:
             ext: 提取项
@@ -92,14 +121,29 @@ class ConfidenceScorer:
         Returns:
             完整性得分 [0, 1]
         """
-        # 统计关键属性
-        key_attrs = ['summary_cn', 'trigger_context', 'consequence', 'reason', 'related_entities']
-        has_summary = 1 if ext.get('summary_cn') else 0
-        other_attrs = sum(1 for attr in key_attrs[1:] if ext.get(attr))
+        ext_type = ext.get('type', '')
 
-        # 理想情况: summary + 2个其他属性
-        total = has_summary + other_attrs
-        return min(1.0, total / 3.0)
+        # summary_cn 是所有类型的通用重要属性
+        has_summary = 0.3 if ext.get('summary_cn') else 0.0
+
+        required = self.REQUIRED_ATTRS.get(ext_type, [])
+        optional = self.OPTIONAL_ATTRS.get(ext_type, [])
+
+        if not required:
+            # 未知类型: 回退到通用评分
+            key_attrs = ['summary_cn', 'trigger_context', 'consequence', 'reason', 'related_entities']
+            count = sum(1 for attr in key_attrs if ext.get(attr))
+            return min(1.0, count / 3.0)
+
+        # 必填属性覆盖率 (权重 0.5)
+        required_count = sum(1 for attr in required if ext.get(attr))
+        required_ratio = required_count / len(required) if required else 0
+
+        # 可选属性覆盖率 (权重 0.2)
+        optional_count = sum(1 for attr in optional if ext.get(attr))
+        optional_ratio = optional_count / len(optional) if optional else 0
+
+        return min(1.0, has_summary + 0.5 * required_ratio + 0.2 * optional_ratio)
 
     def _calc_text_specificity(self, ext: dict) -> float:
         """
@@ -120,21 +164,18 @@ class ConfidenceScorer:
             return 0.0
 
         if 10 <= length <= 200:
-            # 最佳范围
             return 1.0
         elif length < 10:
-            # 过短，线性扣分
             return length / 10.0
         else:
-            # 过长，递减扣分
-            # 200 → 1.0, 400 → 0.7, 600 → 0.5, 1000 → 0.3
+            # 200 -> 1.0, 400 -> 0.7, 600 -> 0.5, 1000 -> 0.3
             return max(0.3, 1.0 - (length - 200) / 800.0)
 
     def _calc_type_consistency(self, ext: dict) -> float:
         """
-        类型一致性评分
+        类型与属性一致性评分
 
-        当前简化实现：只要有 type 字段就给高分
+        检查提取项的属性是否符合其声明类型的 schema。
 
         Args:
             ext: 提取项
@@ -147,14 +188,33 @@ class ConfidenceScorer:
         if not ext_type:
             return 0.5
 
-        # 标准类型
-        standard_types = ['entity', 'rule', 'constraint', 'event', 'state', 'relation']
+        standard_types = set(self.REQUIRED_ATTRS.keys())
 
-        if ext_type in standard_types:
-            return 0.9
+        if ext_type not in standard_types:
+            return 0.7  # 非标准类型
 
-        # 非标准但有类型
-        return 0.7
+        # 检查属性是否与类型 schema 匹配
+        required = self.REQUIRED_ATTRS[ext_type]
+        has_any_required = any(ext.get(attr) for attr in required)
+
+        # 检查是否有其他类型的必填属性 (跨类型污染)
+        other_type_attrs = set()
+        for other_type, attrs in self.REQUIRED_ATTRS.items():
+            if other_type != ext_type:
+                other_type_attrs.update(attrs)
+
+        # 排除通用属性
+        unique_other_attrs = other_type_attrs - set(required)
+        has_foreign_attrs = any(ext.get(attr) for attr in unique_other_attrs)
+
+        if has_any_required and not has_foreign_attrs:
+            return 1.0  # 属性完全匹配类型
+        elif has_any_required and has_foreign_attrs:
+            return 0.8  # 有正确属性但也有其他类型属性
+        elif not has_any_required and not has_foreign_attrs:
+            return 0.7  # 没有任何类型特定属性 (可能只有 text + summary_cn)
+        else:
+            return 0.5  # 没有正确属性但有其他类型属性 (可能分类错误)
 
 
 if __name__ == "__main__":
@@ -164,12 +224,16 @@ if __name__ == "__main__":
             "type": "entity",
             "text": "class MLevel",
             "summary_cn": "关卡类",
+            "entity_name": "MLevel",
+            "entity_kind": "class",
             "source_location": {"match_type": "exact"},
         },
         {
             "type": "rule",
             "text": "禁止修改 Solver/ 目录下任何文件",
             "summary_cn": "Solver只读保护",
+            "condition": "修改 Solver/ 时",
+            "action": "拒绝修改",
             "trigger_context": "修改 Solver/ 时",
             "consequence": "破坏解算器稳定性",
             "source_location": {"match_type": "normalized"},

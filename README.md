@@ -15,6 +15,7 @@
 
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![License MIT](https://img.shields.io/badge/License-MIT-green)
+![Tests 84 passed](https://img.shields.io/badge/Tests-84%20passed-brightgreen)
 ![Claude Code Skill](https://img.shields.io/badge/Claude_Code-Skill-purple)
 ![Cursor Rules](https://img.shields.io/badge/Cursor-Rules-orange)
 
@@ -36,6 +37,8 @@ Zero external dependencies. No API keys. Just your AI assistant + Python stdlib.
 - [Performance](#performance)
 - [License](#license)
 - [Cursor IDE](#cursor-ide)
+- [Testing](#testing)
+- [Changelog](#changelog)
 - [Chinese / 简体中文](#简体中文)
 - [Japanese / 日本語](#日本語)
 
@@ -260,7 +263,7 @@ The post-processing pipeline transforms raw Claude extractions into high-quality
 |------|--------|-------------|
 | 1. Source Grounding | `source_grounding.py` | 3-level text alignment: exact string match, normalized match (whitespace/case), fuzzy match via `difflib.SequenceMatcher`. Anchors each extraction to a specific source location. |
 | 2. Overlap Dedup | `overlap_dedup.py` | Removes duplicate extractions where character intervals overlap by more than 50%. Keeps the higher-confidence extraction. |
-| 3. Confidence Scoring | `confidence_scorer.py` | 4-dimension weighted score: `match_quality` (35%) + `attr_completeness` (25%) + `text_specificity` (20%) + `type_consistency` (20%). |
+| 3. Confidence Scoring | `confidence_scorer.py` | 4-dimension weighted score: `match_quality` (35%) + `attr_completeness` (25%, type-aware) + `text_specificity` (20%) + `type_consistency` (20%, schema-validated). Weights are configurable. |
 | 4. Entity Resolution | `entity_resolver.py` | Optional. Greedy clustering algorithm using `difflib` similarity to merge references to the same logical entity. |
 | 5. Relation Inference | `relation_inferrer.py` | Optional. Rule-based inference of relations between entities based on co-occurrence patterns in source text. |
 
@@ -280,6 +283,8 @@ After the pipeline completes, you choose one or more **output formats**:
 structured-extractor/
 |
 +-- SKILL.md                        # Claude Code skill definition
++-- LICENSE                         # MIT License
++-- pyproject.toml                  # Project config + pytest settings
 |
 +-- cursor/                         # Cursor IDE rules
 |   +-- structured-extractor.mdc   #   Cursor-compatible .mdc rules file
@@ -299,14 +304,25 @@ structured-extractor/
 |   +-- post-processing.md          #   Pipeline algorithm details
 |
 +-- scripts/                        # Python pipeline
+|   +-- __init__.py                 #   Package init
 |   +-- pipeline.py                 #   Main pipeline (CLI entry point)
 |   +-- source_grounding.py         #   Text alignment to source
 |   +-- overlap_dedup.py            #   Overlap deduplication
-|   +-- confidence_scorer.py        #   4-dimension confidence scoring
+|   +-- confidence_scorer.py        #   4-dimension confidence scoring (type-aware)
 |   +-- entity_resolver.py          #   Entity disambiguation
 |   +-- relation_inferrer.py        #   Relation inference
 |   +-- kg_injector.py              #   Knowledge graph format conversion
 |   +-- test_data/                  #   Test fixtures
+|
++-- tests/                          # pytest test suite (84 tests)
+|   +-- conftest.py                 #   Shared fixtures
+|   +-- test_source_grounding.py    #   11 tests
+|   +-- test_overlap_dedup.py       #   12 tests
+|   +-- test_confidence_scorer.py   #   12 tests
+|   +-- test_entity_resolver.py     #   10 tests
+|   +-- test_relation_inferrer.py   #   13 tests
+|   +-- test_kg_injector.py         #   13 tests
+|   +-- test_pipeline.py            #   13 integration tests
 |
 +-- test/                           # Integration test data
 ```
@@ -512,6 +528,50 @@ python scripts/pipeline.py \
 | Memory per extraction | ~1 KB |
 | External dependencies | None (Python stdlib only) |
 | Minimum Python version | 3.10+ |
+
+---
+
+## Testing
+
+```bash
+# Install pytest (dev dependency only)
+pip install pytest
+
+# Run all tests
+python -m pytest tests/ -v
+```
+
+**84 tests** covering all 7 pipeline modules:
+
+| Module | Tests | Key Coverage |
+|--------|:-----:|-------------|
+| `source_grounding` | 11 | Exact/normalized/fuzzy match, empty input, immutability |
+| `overlap_dedup` | 12 | Best-win strategy, type-aware mode, boundary thresholds |
+| `confidence_scorer` | 12 | Type-aware attr scoring, custom weights, schema validation |
+| `entity_resolver` | 10 | Identical merge, containment similarity, reference rewriting |
+| `relation_inferrer` | 13 | All 5 relation types, scope isolation, dedup, directionality |
+| `kg_injector` | 13 | Unique names, confidence filtering, all type conversion |
+| `pipeline` (integration) | 13 | End-to-end, config override, dedup stats, KG output |
+
+---
+
+## Changelog
+
+### v1.1.0 (2026-02-09)
+
+**Code Quality Improvements:**
+- `confidence_scorer`: Type-aware attribute completeness scoring based on `extraction-types.md` schema (each type has its own required/optional attributes)
+- `confidence_scorer`: Meaningful `type_consistency` dimension -- now checks for cross-type attribute pollution instead of always returning 0.9
+- `confidence_scorer`: Configurable weights via constructor parameter
+- `pipeline`: `stats` now includes `dedup_removed` count
+- `kg_injector`: Entity names use `{type}:{summary}` format to prevent collisions between different types with same summary
+- `entity_resolver`: Fixed bug where entities with identical text could not be merged (changed from text-based to index-based representative filtering)
+
+**Engineering:**
+- Added MIT `LICENSE` file
+- Added `scripts/__init__.py` for package importability
+- Added `pyproject.toml` with project metadata and pytest configuration
+- Added `tests/` directory with 84 pytest tests covering all modules
 
 ---
 

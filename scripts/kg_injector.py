@@ -135,11 +135,13 @@ class KGInjector:
 
     def _make_name(self, ext: dict) -> str:
         """
-        生成实体名称
+        生成唯一实体名称
+
+        格式: "{type}:{display_name}" 确保不同类型的同名实体不冲突
 
         优先级:
-        1. summary_cn 前50字符
-        2. text 前50字符
+        1. summary_cn 前40字符
+        2. text 前40字符
 
         Args:
             ext: 提取项
@@ -147,18 +149,19 @@ class KGInjector:
         Returns:
             实体名称
         """
+        ext_type = ext.get('type', 'entity')
+
         summary_cn = ext.get('summary_cn', '')
         if summary_cn:
-            return summary_cn[:50]
+            display = summary_cn[:40]
+        else:
+            text = ext.get('text', '')
+            if text:
+                display = ' '.join(text.split())[:40]
+            else:
+                display = f"unnamed_{id(ext)}"
 
-        text = ext.get('text', '')
-        if text:
-            # 去除换行和多余空白
-            cleaned = ' '.join(text.split())
-            return cleaned[:50]
-
-        # 兜底
-        return f"Entity_{id(ext)}"
+        return f"{ext_type}:{display}"
 
 
 if __name__ == "__main__":

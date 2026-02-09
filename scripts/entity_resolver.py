@@ -43,22 +43,33 @@ class EntityResolver:
         # 构建别名映射表 (旧名 -> 标准名)
         alias_map = self._build_alias_map(clusters)
 
-        # 合并实体：每个簇保留一个代表
-        merged_entities = []
+        # 合并实体：找出每个簇应保留的实体在原始列表中的索引
+        representative_indices = set()
         for cluster in clusters:
             representative = max(cluster, key=lambda e: self._canonical_score(e.get('text', '')))
-            merged_entities.append(representative)
+            # 找到代表在原始 entities 列表中的索引
+            for idx, entity in enumerate(entities):
+                if entity is representative:
+                    representative_indices.add(idx)
+                    break
+
+        # 构建完整的保留索引集 (基于在 extractions 中的位置)
+        keep_entity_indices = set()
+        entity_idx = 0
+        for i, ext in enumerate(extractions):
+            if ext.get('type') == 'entity':
+                if entity_idx in representative_indices:
+                    keep_entity_indices.add(i)
+                entity_idx += 1
 
         # 重写所有引用（relation 的 from/to）
         updated_extractions = self._rewrite_references(extractions, alias_map)
 
-        # 过滤掉被合并的实体
-        canonical_names = {e.get('text') for e in merged_entities}
+        # 过滤掉被合并的实体 (只保留每个簇的代表)
         result = []
-
-        for ext in updated_extractions:
+        for i, ext in enumerate(updated_extractions):
             if ext.get('type') == 'entity':
-                if ext.get('text') in canonical_names:
+                if i in keep_entity_indices:
                     result.append(ext)
             else:
                 result.append(ext)

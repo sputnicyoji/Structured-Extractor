@@ -6,3 +6,5 @@ dist/
 build/
 .env
 *.tmp
+.pytest_cache/
+_planning/

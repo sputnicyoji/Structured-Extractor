@@ -43,6 +43,7 @@ class ExtractionPipeline:
         "entity_similarity_threshold": 0.7,
         "scope_window": 50,
         "type_aware_dedup": False,
+        "confidence_weights": None,  # 自定义置信度权重 (可选)
     }
 
     def __init__(self, source_text: str, config: dict = None, source_file: str = None):
@@ -62,7 +63,9 @@ class ExtractionPipeline:
             overlap_threshold=self.config["overlap_threshold"],
             type_aware=self.config["type_aware_dedup"],
         )
-        self.scorer = ConfidenceScorer()
+        self.scorer = ConfidenceScorer(
+            weights=self.config.get("confidence_weights")
+        )
         self.resolver = EntityResolver(
             threshold=self.config["entity_similarity_threshold"]
         )
@@ -90,6 +93,7 @@ class ExtractionPipeline:
         """
         extractions = raw_extractions
         inferred_relations = []
+        dedup_removed = 0
 
         print(f"\n=== Pipeline 开始 ===")
         print(f"原始提取项: {len(extractions)} 个\n")
@@ -113,8 +117,8 @@ class ExtractionPipeline:
             print("[2/6] Overlap Deduplication...")
             before_count = len(extractions)
             extractions = self.deduplicator.process(extractions)
-            removed = before_count - len(extractions)
-            print(f"  [OK] removed {removed}, remaining {len(extractions)}\n")
+            dedup_removed = before_count - len(extractions)
+            print(f"  [OK] removed {dedup_removed}, remaining {len(extractions)}\n")
 
         # 3. Confidence Scoring
         if self.config["confidence_scoring"]:
@@ -152,7 +156,7 @@ class ExtractionPipeline:
             print("[6/6] Knowledge Graph Injection (跳过)\n")
 
         # 统计
-        stats = self._compute_stats(extractions, inferred_relations)
+        stats = self._compute_stats(extractions, inferred_relations, dedup_removed)
 
         print("=== Pipeline 完成 ===\n")
 
@@ -163,13 +167,14 @@ class ExtractionPipeline:
             "stats": stats,
         }
 
-    def _compute_stats(self, extractions: list[dict], relations: list[dict]) -> dict:
+    def _compute_stats(self, extractions: list[dict], relations: list[dict], dedup_removed: int = 0) -> dict:
         """
         计算统计信息
 
         Args:
             extractions: 提取列表
             relations: 关系列表
+            dedup_removed: 去重移除的数量
 
         Returns:
             统计字典
@@ -200,6 +205,7 @@ class ExtractionPipeline:
 
         return {
             "total_extractions": total,
+            "dedup_removed": dedup_removed,
             "by_type": by_type,
             "avg_confidence": round(avg_confidence, 3),
             "confidence_distribution": {
