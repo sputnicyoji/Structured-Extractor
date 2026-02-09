@@ -42,21 +42,25 @@ class ExtractionPipeline:
         "overlap_threshold": 0.5,
         "entity_similarity_threshold": 0.7,
         "scope_window": 50,
+        "type_aware_dedup": False,
     }
 
-    def __init__(self, source_text: str, config: dict = None):
+    def __init__(self, source_text: str, config: dict = None, source_file: str = None):
         """
         Args:
             source_text: 原始源文件文本
             config: 配置字典（可选）
+            source_file: 源文件名（可选，用于 KG 输出的 Source 标注）
         """
         self.source_text = source_text
+        self.source_file = source_file
         self.config = {**self.DEFAULT_CONFIG, **(config or {})}
 
         # 初始化各模块
         self.grounder = SourceGrounder(source_text)
         self.deduplicator = OverlapDeduplicator(
-            overlap_threshold=self.config["overlap_threshold"]
+            overlap_threshold=self.config["overlap_threshold"],
+            type_aware=self.config["type_aware_dedup"],
         )
         self.scorer = ConfidenceScorer()
         self.resolver = EntityResolver(
@@ -97,6 +101,12 @@ class ExtractionPipeline:
             matched = sum(1 for e in extractions
                           if e.get('source_location', {}).get('match_type') in ['exact', 'normalized', 'fuzzy'])
             print(f"  [OK] {matched}/{len(extractions)} matched\n")
+
+        # 注入 source_file (供 KG 输出使用)
+        if self.source_file:
+            for ext in extractions:
+                if 'source_file' not in ext:
+                    ext['source_file'] = self.source_file
 
         # 2. Overlap Deduplication
         if self.config["overlap_dedup"]:
@@ -283,7 +293,7 @@ def main():
         config["kg_injection"] = True
 
     # 执行管道
-    pipeline = ExtractionPipeline(source_text, config)
+    pipeline = ExtractionPipeline(source_text, config, source_file=source_path.name)
     result = pipeline.process(raw_extractions)
 
     # 输出结果

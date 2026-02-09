@@ -10,12 +10,15 @@ Overlap Deduplication Module
 class OverlapDeduplicator:
     """重叠提取项去重器"""
 
-    def __init__(self, overlap_threshold: float = 0.5):
+    def __init__(self, overlap_threshold: float = 0.5, type_aware: bool = False):
         """
         Args:
             overlap_threshold: 重叠率阈值 (默认0.5 = 50%)
+            type_aware: 类型感知模式 (默认False)。
+                        开启后，不同类型的项即使位置重叠也不会被去重。
         """
         self.overlap_threshold = overlap_threshold
+        self.type_aware = type_aware
 
     def process(self, extractions: list[dict]) -> list[dict]:
         """
@@ -58,6 +61,10 @@ class OverlapDeduplicator:
             should_keep = True
 
             for kept_item in kept:
+                # type_aware 模式: 不同类型不去重
+                if self.type_aware and item.get('type') != kept_item.get('type'):
+                    continue
+
                 overlap = self._overlap_ratio(item, kept_item)
 
                 if overlap > self.overlap_threshold:

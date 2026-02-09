@@ -5,16 +5,19 @@ Relation Inference Module
 - 按 source_file + 行号范围 分 scope (50行一组)
 - 同 scope 内按类型对匹配推断关系
 - 规则表驱动，支持自定义扩展
+- 有向推断：rule/constraint/event/state → entity 单向，entity ↔ entity 双向
 """
 
 
-# 推断规则表: (type_a, type_b) -> relation_type
+# 推断规则表: (type_a, type_b) -> (relation_type, bidirectional)
+# bidirectional=True: 同时生成 A→B 和 B→A
+# bidirectional=False: 只生成 A→B（有向）
 INFERENCE_RULES = {
-    ("rule", "entity"): "governs",
-    ("constraint", "entity"): "validates",
-    ("event", "entity"): "subscribes_to",
-    ("state", "entity"): "transitions",
-    ("entity", "entity"): "relates_to",
+    ("rule", "entity"): ("governs", False),
+    ("constraint", "entity"): ("validates", False),
+    ("event", "entity"): ("subscribes_to", False),
+    ("state", "entity"): ("transitions", False),
+    ("entity", "entity"): ("relates_to", True),
 }
 
 
@@ -86,7 +89,10 @@ class RelationInferrer:
 
     def _infer_in_scope(self, items: list[dict]) -> list[dict]:
         """
-        在单个 scope 内推断关系
+        在单个 scope 内推断关系（有向推断）
+
+        有向规则: rule/constraint/event/state → entity 只生成正向关系
+        双向规则: entity ↔ entity 生成双向关系（去重: 只生成 i<j 的对）
 
         Args:
             items: 同 scope 的提取项
@@ -95,8 +101,8 @@ class RelationInferrer:
             推断的关系列表
         """
         relations = []
+        seen = set()  # 去重: (from_text, to_text, relation_type)
 
-        # 遍历所有类型对
         for i, item_a in enumerate(items):
             type_a = item_a.get('type')
             text_a = item_a.get('text', '')
@@ -106,7 +112,7 @@ class RelationInferrer:
 
             for j, item_b in enumerate(items):
                 if i == j:
-                    continue  # 跳过自身
+                    continue
 
                 type_b = item_b.get('type')
                 text_b = item_b.get('text', '')
@@ -114,42 +120,32 @@ class RelationInferrer:
                 if not type_b or not text_b:
                     continue
 
-                # 查找匹配规则
-                relation_type = self._find_relation(type_a, type_b)
+                # 只查正向规则 (type_a, type_b)
+                rule = INFERENCE_RULES.get((type_a, type_b))
+                if not rule:
+                    continue
 
-                if relation_type:
-                    # 创建关系
-                    relation = {
-                        "type": "relation",
-                        "from": text_a,
-                        "to": text_b,
-                        "relation_type": relation_type,
-                        "confidence": 0.6,  # 推断关系置信度较低
-                        "inferred": True,
-                    }
-                    relations.append(relation)
+                relation_type, bidirectional = rule
+
+                # 双向关系去重: 只在 i < j 时生成
+                if bidirectional and i > j:
+                    continue
+
+                dedup_key = (text_a, text_b, relation_type)
+                if dedup_key in seen:
+                    continue
+                seen.add(dedup_key)
+
+                relations.append({
+                    "type": "relation",
+                    "from": text_a,
+                    "to": text_b,
+                    "relation_type": relation_type,
+                    "confidence": 0.6,
+                    "inferred": True,
+                })
 
         return relations
-
-    def _find_relation(self, type_a: str, type_b: str) -> str:
-        """
-        查找类型对应的关系类型
-
-        Args:
-            type_a, type_b: 实体类型
-
-        Returns:
-            关系类型，或 None
-        """
-        # 精确匹配
-        if (type_a, type_b) in INFERENCE_RULES:
-            return INFERENCE_RULES[(type_a, type_b)]
-
-        # 反向匹配
-        if (type_b, type_a) in INFERENCE_RULES:
-            return INFERENCE_RULES[(type_b, type_a)]
-
-        return None
 
 
 if __name__ == "__main__":

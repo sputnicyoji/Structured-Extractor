@@ -46,8 +46,7 @@ class EntityResolver:
         # 合并实体：每个簇保留一个代表
         merged_entities = []
         for cluster in clusters:
-            # 选择最长名称的实体作为代表
-            representative = max(cluster, key=lambda e: len(e.get('text', '')))
+            representative = max(cluster, key=lambda e: self._canonical_score(e.get('text', '')))
             merged_entities.append(representative)
 
         # 重写所有引用（relation 的 from/to）
@@ -149,8 +148,8 @@ class EntityResolver:
         alias_map = {}
 
         for cluster in clusters:
-            # 选择最长名称为标准名
-            canonical = max(cluster, key=lambda e: len(e.get('text', '')))
+            # 选择最佳名称为标准名 (CamelCase 优先)
+            canonical = max(cluster, key=lambda e: self._canonical_score(e.get('text', '')))
             canonical_name = canonical.get('text', '')
 
             for entity in cluster:
@@ -159,6 +158,24 @@ class EntityResolver:
                     alias_map[name] = canonical_name
 
         return alias_map
+
+    @staticmethod
+    def _canonical_score(name: str) -> tuple:
+        """
+        计算名称的 canonical 优先级分数
+
+        优先级:
+        1. 不含空格 (CamelCase/snake_case) 优先
+        2. 更长的名称优先
+
+        Args:
+            name: 实体名称
+
+        Returns:
+            (no_space_bonus, length) 用于 max() 比较
+        """
+        no_space = 0 if ' ' in name else 1
+        return (no_space, len(name))
 
     def _rewrite_references(self, extractions: list[dict], alias_map: dict) -> list[dict]:
         """
