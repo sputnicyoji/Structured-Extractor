@@ -1,0 +1,135 @@
+---
+description: "Structured information extraction expert. Use when: extracting business rules, event flows, state machines, constraints, entities, and relations from code/docs/logs. Provides: (1) 6 extraction type framework (2) Few-shot templates (3) 6-step Python post-processing pipeline."
+globs: []
+alwaysApply: false
+---
+
+# Structured Extractor
+
+> Universal structured information extraction | LangExtract replacement | Built-in 6-step pipeline
+
+## Core Rules (CRITICAL)
+
+1. **Never skip Few-shot** - Extractions MUST follow the template format below
+2. **Never free-form output** - Strictly follow the JSON schema defined below
+3. **Never skip post-processing** - Raw extractions MUST go through `scripts/pipeline.py`
+4. **Never inject low quality** - Filter extractions with `confidence < 0.3`
+
+## Extraction Types
+
+| Type | Recognition Pattern |
+|------|-------------------|
+| `rule` | Conditional branches, business decisions (if/switch/when) |
+| `event` | Event subscriptions, message sending (+=, Fire, Send) |
+| `state` | State changes, phase transitions (SetState, enum change) |
+| `constraint` | Null checks, boundary conditions, precondition assertions |
+| `entity` | Class definitions, key concepts, named actors |
+| `relation` | Inter-entity relationships (inheritance, dependency, calls) |
+
+## Output Format (per extraction)
+
+```json
+{
+  "id": "ext_001",
+  "type": "rule",
+  "text": "if (MLevel.IsGuideLevel)",
+  "summary_cn": "Special handling for tutorial levels",
+  "attributes": {
+    "condition": "IsGuideLevel == true",
+    "action": "Auto-deploy and enter battle"
+  },
+  "source_file": "AMultiGateLevel.cs"
+}
+```
+
+## Decision Tree
+
+```
+I need to extract structured information from text?
+    |
+    +-- What file type?
+    |   +-- .cs/.py/.js/.ts -> Use code-logic preset
+    |   +-- .md/.txt/.doc   -> Use doc-structure preset
+    |   +-- .log            -> Use log-analysis preset
+    |   +-- Other           -> Specify focus_types manually
+    |
+    +-- Which post-processing?
+    |   +-- Basic (default) -> Grounding + Dedup + Scoring
+    |   +-- Full            -> All 6 steps
+    |   +-- Minimal         -> Scoring only
+    |
+    +-- Output purpose?
+        +-- Generate report    -> Output Markdown
+        +-- Supplement docs    -> Output to docs/
+        +-- Update knowledge   -> Enable KG Injection
+```
+
+## Workflow
+
+### Step 1: Select preset
+
+```
+Presets: assets/presets/{preset-name}.json
+  code-logic.json       Focus: rule, event, state, constraint
+  doc-structure.json    Focus: entity, relation, rule, constraint
+  log-analysis.json     Focus: event, state, constraint
+```
+
+### Step 2: Extract with AI
+
+Follow the extraction types above. For each item found:
+- `text` MUST be an exact substring from the original source (not rewritten)
+- `summary_cn` is the human-readable summary
+- `attributes` varies by type
+
+### Step 3: Save raw JSON
+
+Save Claude/AI extractions to a temporary JSON file.
+
+### Step 4: Run pipeline
+
+```bash
+# Basic
+python scripts/pipeline.py --input raw.json --source code.cs --output result.json
+
+# With preset
+python scripts/pipeline.py --input raw.json --source code.cs \
+  --config assets/presets/code-logic.json --output result.json
+
+# Full pipeline
+python scripts/pipeline.py --input raw.json --source code.cs \
+  --enable-entity-resolution --enable-relation-inference \
+  --enable-kg-injection --output result.json
+```
+
+### Step 5: Use results
+
+Read the output JSON and generate: Markdown reports, knowledge graph entities, or documentation supplements.
+
+## Pipeline Steps
+
+```
+1. Source Grounding  -> Locate text in source (char_start/end + line)
+2. Overlap Dedup     -> Remove duplicate extractions (>50% overlap)
+3. Confidence Score  -> 4-dimension quality scoring
+4. Entity Resolution -> Merge similar entities (optional)
+5. Relation Inference -> Infer co-occurrence relations (optional)
+6. KG Injection      -> Convert to knowledge graph format (optional)
+```
+
+## Key Principles
+
+1. **Few-shot driven** - Extraction quality depends on templates, not free-form
+2. **Pipeline required** - Raw extractions lack location and confidence scores
+3. **text must be verbatim** - The `text` field is an exact source substring, never rewritten
+
+## Red Flags
+
+| Signal | Correct Action |
+|--------|---------------|
+| "Just output Markdown directly" | Must do JSON extraction + pipeline first |
+| "I don't need Few-shot" | Must follow template format or pipeline fails |
+| "I rewrote the text field" | text must be exact source substring; use summary_cn for summaries |
+| "No need to run pipeline.py" | Raw extractions lack location and confidence |
+| "I'll write location manually" | Location is computed by Source Grounding algorithm |
+| "Set all confidence to 1.0" | Confidence is computed by 4-dimension algorithm |
