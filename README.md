@@ -27,6 +27,7 @@ Zero external dependencies. No API keys. Just Claude + Python stdlib.
 ## Table of Contents
 
 - [Overview](#overview)
+- [Why structured-extractor?](#why-structured-extractor)
 - [Architecture](#architecture)
 - [Pipeline](#pipeline)
 - [File Structure](#file-structure)
@@ -54,6 +55,126 @@ The key insight: LangExtract was 90% prompt engineering and 10% difflib-based al
 - **Zero external dependencies**: Python standard library only
 - **No API keys needed**: Uses Claude Code's built-in AI capabilities
 - **Fast**: 1000 extractions against a 500-line source file in under 1 second
+
+---
+
+## Why structured-extractor?
+
+Code knowledge exists at three distinct layers. Most tools only reach the first two:
+
+```
+  Layer 3 (Semantic)    "Shutdown must be deferred during iteration to prevent collection modification"
+      ^                  structured-extractor extracts THIS layer
+      |
+  Layer 2 (Location)    "m_IsDelayShutdown appears at line 42, 87, 153"
+      ^                  Grep / code search finds this
+      |
+  Layer 1 (Structure)   "GameSolver has field m_IsDelayShutdown (bool) and method Shutdown()"
+                         AST / Repomap / tree-sitter gives you this
+```
+
+### What AST / Repomap sees
+
+AST-based tools parse syntax trees. They excel at answering **what** and **where**:
+
+```
+GameSolver
++-- field: m_IsDelayShutdown (bool)
++-- field: m_IsUpdating (bool)
++-- method: Shutdown() -> void
++-- method: OnUpdate() -> void
+|   +-- calls: WaitForCompletion()
+|   +-- calls: RunAllSystems()
++-- inherits: ISolver
+```
+
+This is the **skeleton** -- class members, call graphs, inheritance. Extremely useful for navigation. But it cannot tell you *why* `m_IsDelayShutdown` exists or what breaks if you remove it.
+
+### What Grep / Code Search sees
+
+```bash
+grep "m_IsDelayShutdown" -> 3 hits (declaration, set true, check)
+grep "WaitForCompletion" -> 2 hits (in Shutdown, in OnUpdate)
+```
+
+These are **fragments** -- where a symbol appears. You must mentally reconstruct the full picture.
+
+### What structured-extractor sees
+
+```json
+{
+  "type": "constraint",
+  "text": "if (m_IsUpdating) { m_IsDelayShutdown = true; return; }",
+  "summary": "Deferred shutdown: cannot execute during system iteration",
+  "attributes": {
+    "reason": "Prevents collection modification during foreach traversal",
+    "type": "concurrency_safety",
+    "consequence": "Removing this causes InvalidOperationException at runtime"
+  }
+}
+```
+
+It extracts **semantic knowledge** -- not what the code looks like, but what it *means* and *why it must be this way*.
+
+### Three categories of knowledge AST cannot capture
+
+#### 1. Implicit ordering constraints
+
+```csharp
+InitPhysics();
+InitRendering();
+InitAudio();
+RegisterCallbacks();
+```
+
+AST sees: four sequential method calls.
+**But it cannot distinguish "happens to be in this order" from "MUST be in this order or the system crashes."**
+structured-extractor labels this as a `rule` with `order: mandatory` and `consequence: changing order breaks dependency chain`.
+
+#### 2. Distributed compound rules
+
+Pause logic scattered across three locations in a game engine:
+
+```csharp
+// Location 1 (line 40): stage guard
+if (currentStage != Stage.Running) return;
+
+// Location 2 (line 55): input cleanup
+pendingInputX = 0f;
+
+// Location 3 (line 72): time freeze
+TimeManager.SetGroupScale(groupId, 0f);
+```
+
+AST sees three independent statements. Grep finds each location separately. Only structured-extractor **associates** them as a compound rule: "Pause requires all three steps -- skipping any one causes bugs."
+
+#### 3. The "why" behind defensive code
+
+```csharp
+lastUpdateTime = Time.current;  // inside Resume()
+```
+
+| Tool | Sees | Misses |
+|------|------|--------|
+| AST | Assignment, type `float` | Why is this needed? |
+| Grep | `lastUpdateTime` at line 88 | Relationship to pause duration |
+| **structured-extractor** | "Prevents frame spike after pause: without reset, first frame deltaTime equals total pause duration, causing teleportation" | -- |
+
+### Summary
+
+| Capability | AST / Repomap | Grep / Search | structured-extractor |
+|------------|:---:|:---:|:---:|
+| Class hierarchy & members | Yes | -- | -- |
+| Symbol location | -- | Yes | Yes |
+| **Business rules** | -- | -- | **Yes** |
+| **Ordering constraints** | -- | -- | **Yes** |
+| **Causal reasoning (why)** | -- | -- | **Yes** |
+| **Cross-location rule aggregation** | -- | -- | **Yes** |
+| **Consequence of violation** | -- | -- | **Yes** |
+
+> **AST tells you the skeleton of the code. structured-extractor tells you its soul.**
+
+The ideal developer knowledge system covers all three layers: Repomap for structural navigation, Grep for precise location, structured-extractor for semantic understanding. They are complementary, not competing.
 
 ---
 
@@ -340,6 +461,41 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 它替代了 LangExtract -- LangExtract 本质上是 90% 的 Prompt 工程加 10% 的 difflib 算法。本工具利用 Claude Code 内置的 AI 能力完成提取，配合纯 Python 标准库实现的 6 步后处理管道，无需任何外部依赖或 API 密钥。
 
+## 为什么需要 structured-extractor?
+
+代码知识存在于三个层次，大多数工具只能触及前两层:
+
+```
+  第3层 (语义层)    "迭代期间必须延迟关闭，防止遍历时修改集合"
+      ^              structured-extractor 提取的是这一层
+      |
+  第2层 (定位层)    "m_IsDelayShutdown 出现在第 42、87、153 行"
+      ^              Grep / 代码搜索擅长这一层
+      |
+  第1层 (结构层)    "GameSolver 有字段 m_IsDelayShutdown (bool) 和方法 Shutdown()"
+                     AST / Repomap / tree-sitter 擅长这一层
+```
+
+### AST 看到骨架，structured-extractor 看到灵魂
+
+| 能力 | AST / Repomap | Grep / 搜索 | structured-extractor |
+|------|:---:|:---:|:---:|
+| 类层级和成员 | Yes | -- | -- |
+| 符号定位 | -- | Yes | Yes |
+| **业务规则** | -- | -- | **Yes** |
+| **顺序约束** | -- | -- | **Yes** |
+| **因果推理 (为什么)** | -- | -- | **Yes** |
+| **跨位置规则聚合** | -- | -- | **Yes** |
+| **违反后果** | -- | -- | **Yes** |
+
+### AST 无法捕获的三类知识
+
+1. **隐式顺序约束** -- AST 看到 4 个顺序调用，但无法区分 "恰好这个顺序" 和 "必须这个顺序否则崩溃"
+2. **分散的复合规则** -- 暂停逻辑分布在三个位置 (阶段检查/输入清理/时间冻结)，AST 认为是三条独立语句，只有 structured-extractor 将它们关联为 "暂停三件套"
+3. **防御性代码的 "为什么"** -- `lastUpdateTime = Time.current` 在 Resume 中，AST 看到赋值语句；structured-extractor 看到 "防止暂停后首帧 deltaTime 异常导致角色瞬移"
+
+> 理想的开发者知识系统应三层全覆盖: Repomap 做结构导航，Grep 做精确定位，structured-extractor 做语义理解。三者互补而非竞争。
+
 ## 核心特性
 
 - **6 种提取类型**: rule (规则), event (事件), state (状态), constraint (约束), entity (实体), relation (关系)
@@ -417,6 +573,41 @@ Claude AI 提取 -> JSON -> Python 管道 (6 步后处理) -> 结构化输出
 **structured-extractor** は、コード・ドキュメント・ログから構造化情報を抽出する Claude Code Skill です。
 
 LangExtract の代替として開発されました。LangExtract の実態は 90% がプロンプトエンジニアリング、10% が difflib アルゴリズムでした。本ツールは Claude Code 内蔵の AI で抽出を行い、Python 標準ライブラリのみで実装された 6 段階の後処理パイプラインと組み合わせます。外部依存や API キーは不要です。
+
+## なぜ structured-extractor が必要か?
+
+コード知識は3つのレイヤーに存在しますが、ほとんどのツールは最初の2つしか到達できません:
+
+```
+  Layer 3 (意味層)    "イテレーション中はシャットダウンを遅延させ、コレクション変更を防ぐ"
+      ^                structured-extractor はこのレイヤーを抽出
+      |
+  Layer 2 (位置層)    "m_IsDelayShutdown は 42行目、87行目、153行目に出現"
+      ^                Grep / コード検索の得意分野
+      |
+  Layer 1 (構造層)    "GameSolver にフィールド m_IsDelayShutdown (bool) とメソッド Shutdown() がある"
+                       AST / Repomap / tree-sitter の得意分野
+```
+
+### AST は骨格を見せ、structured-extractor は魂を見せる
+
+| 能力 | AST / Repomap | Grep / 検索 | structured-extractor |
+|------|:---:|:---:|:---:|
+| クラス階層・メンバー | Yes | -- | -- |
+| シンボル位置特定 | -- | Yes | Yes |
+| **ビジネスルール** | -- | -- | **Yes** |
+| **順序制約** | -- | -- | **Yes** |
+| **因果推論 (なぜ)** | -- | -- | **Yes** |
+| **分散ルールの集約** | -- | -- | **Yes** |
+| **違反時の結果** | -- | -- | **Yes** |
+
+### AST が捕捉できない3つの知識カテゴリ
+
+1. **暗黙の順序制約** -- AST は4つの順次呼び出しを見ますが、「たまたまこの順序」と「この順序でなければクラッシュ」を区別できません
+2. **分散した複合ルール** -- ポーズロジックが3箇所に分散 (ステージ確認/入力クリア/時間凍結)。AST は独立した3文と認識しますが、structured-extractor だけがこれらを「ポーズ三点セット」として関連付けます
+3. **防御的コードの「なぜ」** -- `lastUpdateTime = Time.current` が Resume 内にある場合、AST は代入文と認識。structured-extractor は「ポーズ後の最初のフレームで deltaTime が異常に大きくなり、キャラクターが瞬間移動するのを防止」と理解します
+
+> 理想的な開発者知識システムは3層すべてをカバー: Repomap で構造ナビゲーション、Grep で正確な位置特定、structured-extractor で意味理解。互いに補完し合う関係です。
 
 ## 主な特徴
 
