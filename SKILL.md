@@ -2,7 +2,7 @@
 name: structured-extractor
 description: "通用结构化信息提取专家。Use when: 需要从代码/文档/日志中提取
   业务规则、事件流、状态机、约束、实体、关系。适用于: 代码分析、文档结构化、
-  日志分析、知识库构建、结构化提取、LangExtract 替代。
+  日志分析、知识库构建、结构化提取。基于 Google LangExtract 算法层重构。
   提供: (1) 6种提取类型分类框架 (2) Few-shot模板库
   (3) 6步后处理管道 (Source Grounding/去重/评分/消歧/关系推断/KG注入)。
   无需外部 API。"
@@ -10,7 +10,7 @@ description: "通用结构化信息提取专家。Use when: 需要从代码/文�
 
 # Structured Extractor
 
-> 通用结构化信息提取 | 替代 LangExtract | 内置 6 步后处理管道
+> 通用结构化信息提取 | 基于 Google LangExtract 算法层重构 | 内置 6 步后处理管道
 
 ## 核心禁令 (CRITICAL)
 

@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Structured Extractor
 
-> Universal structured information extraction | LangExtract replacement | Built-in 6-step pipeline
+> Universal structured information extraction | Built on Google LangExtract's algorithm layer | 6-step pipeline
 
 ## Core Rules (CRITICAL)
 

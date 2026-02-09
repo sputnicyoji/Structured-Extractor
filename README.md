@@ -18,9 +18,9 @@
 ![Claude Code Skill](https://img.shields.io/badge/Claude_Code-Skill-purple)
 ![Cursor Rules](https://img.shields.io/badge/Cursor-Rules-orange)
 
-**A Claude Code Skill / Cursor Rule for structured information extraction from code, documents, and logs.**
+**A Claude Code Skill / Cursor Rule for structured information extraction from code, documents, and logs.** Built on [Google LangExtract](https://github.com/google/langextract)'s Source Grounding algorithms -- enhanced and extended.
 
-Zero external dependencies. No API keys. Just Claude + Python stdlib.
+Zero external dependencies. No API keys. Just your AI assistant + Python stdlib.
 
 ---
 
@@ -43,9 +43,18 @@ Zero external dependencies. No API keys. Just Claude + Python stdlib.
 
 ## Overview
 
-**structured-extractor** replaces [LangExtract](https://github.com/example/langextract) by leveraging Claude Code's built-in AI for extraction, paired with a 6-step Python post-processing pipeline.
+**structured-extractor** reimplements [Google LangExtract](https://github.com/google/langextract)'s post-processing core as a standalone pipeline, eliminating the external LLM dependency by leveraging the host AI assistant's built-in capabilities.
 
-The key insight: LangExtract was 90% prompt engineering and 10% difflib-based algorithms. This skill eliminates the external API dependency entirely -- Claude Code already provides the AI, so all we need is a solid post-processing pipeline.
+### Origin: What we learned from LangExtract
+
+[LangExtract](https://github.com/google/langextract) is Google's Gemini-powered library for structured information extraction. After studying its internals, we identified two distinct layers:
+
+- **The AI layer** (~90%): Prompt engineering, few-shot examples, and schema enforcement that drive extraction quality. This is what Gemini (or any capable LLM) provides.
+- **The algorithm layer** (~10%): Source Grounding via `difflib.SequenceMatcher`, character-offset deduplication, and result aggregation. This is pure Python -- model-agnostic and portable.
+
+The key insight: **if you are already working inside an AI-powered coding assistant (Claude Code, Cursor, etc.), the AI layer is already present.** You don't need a second LLM call to Gemini. What you *do* need is the algorithmic post-processing layer -- extracted, enhanced, and made standalone.
+
+That is exactly what structured-extractor does: it takes LangExtract's Source Grounding and dedup algorithms, **improves them** (best-win dedup instead of first-win, 3-level matching, 4-dimension confidence scoring), and **extends them** with Entity Resolution, Relation Inference, and Knowledge Graph injection -- capabilities LangExtract does not offer.
 
 ### Key Features
 
@@ -457,9 +466,18 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 ## 概述
 
-**structured-extractor** 是一个 Claude Code Skill，用于从代码、文档和日志中提取结构化信息。
+**structured-extractor** 是一个 Claude Code Skill / Cursor Rule，用于从代码、文档和日志中提取结构化信息。
 
-它替代了 LangExtract -- LangExtract 本质上是 90% 的 Prompt 工程加 10% 的 difflib 算法。本工具利用 Claude Code 内置的 AI 能力完成提取，配合纯 Python 标准库实现的 6 步后处理管道，无需任何外部依赖或 API 密钥。
+### 起源: 从 LangExtract 中学到的
+
+[Google LangExtract](https://github.com/google/langextract) 是 Google 推出的 Gemini 驱动的结构化提取库。研究其内部实现后，我们发现它分为两个层次:
+
+- **AI 层** (~90%): Prompt 工程、Few-shot 示例、Schema 约束 -- 决定提取质量的核心，由 LLM 提供
+- **算法层** (~10%): 基于 `difflib.SequenceMatcher` 的 Source Grounding、字符偏移去重、结果聚合 -- 纯 Python，与模型无关
+
+**核心洞察: 如果你已经在 AI 编程助手 (Claude Code / Cursor) 中工作，AI 层已经存在，不需要再额外调用 Gemini。你真正需要的是算法后处理层。**
+
+structured-extractor 将 LangExtract 的 Source Grounding 和去重算法提取出来，**改进** (best-win 去重替代 first-win、3 级匹配、4 维置信度评分) 并 **扩展** (实体消歧、关系推断、知识图谱注入) -- 这些是 LangExtract 没有的能力。无需外部依赖或 API 密钥。
 
 ## 为什么需要 structured-extractor?
 
@@ -570,9 +588,18 @@ Claude AI 提取 -> JSON -> Python 管道 (6 步后处理) -> 结构化输出
 
 ## 概要
 
-**structured-extractor** は、コード・ドキュメント・ログから構造化情報を抽出する Claude Code Skill です。
+**structured-extractor** は、コード・ドキュメント・ログから構造化情報を抽出する Claude Code Skill / Cursor Rule です。
 
-LangExtract の代替として開発されました。LangExtract の実態は 90% がプロンプトエンジニアリング、10% が difflib アルゴリズムでした。本ツールは Claude Code 内蔵の AI で抽出を行い、Python 標準ライブラリのみで実装された 6 段階の後処理パイプラインと組み合わせます。外部依存や API キーは不要です。
+### 起源: LangExtract から学んだこと
+
+[Google LangExtract](https://github.com/google/langextract) は Google が開発した Gemini ベースの構造化抽出ライブラリです。内部実装を分析した結果、2つのレイヤーが識別できました:
+
+- **AI レイヤー** (~90%): プロンプト設計、Few-shot 例、スキーマ制約 -- 抽出品質を決める中核、LLM が提供
+- **アルゴリズムレイヤー** (~10%): `difflib.SequenceMatcher` による Source Grounding、文字オフセット重複排除、結果集約 -- 純粋な Python、モデル非依存
+
+**核心的な洞察: AI コーディングアシスタント (Claude Code / Cursor) 内で作業している場合、AI レイヤーは既に存在します。Gemini への追加呼び出しは不要です。必要なのはアルゴリズム後処理レイヤーだけです。**
+
+structured-extractor は LangExtract の Source Grounding と重複排除アルゴリズムを抽出し、**改良** (first-win から best-win へ、3段階マッチング、4次元信頼度スコアリング) および **拡張** (エンティティ解決、関係推論、ナレッジグラフ注入) しました。外部依存や API キーは不要です。
 
 ## なぜ structured-extractor が必要か?
 
