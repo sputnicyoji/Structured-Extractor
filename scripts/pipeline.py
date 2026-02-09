@@ -262,6 +262,14 @@ def main():
     with open(input_path, 'r', encoding='utf-8') as f:
         raw_extractions = json.load(f)
 
+    # 兼容两种输入格式: 纯数组 [...] 或 {"extractions": [...]}
+    if isinstance(raw_extractions, dict) and "extractions" in raw_extractions:
+        raw_extractions = raw_extractions["extractions"]
+
+    if not isinstance(raw_extractions, list):
+        print(f"错误: 输入JSON必须是数组或包含'extractions'键的对象", file=sys.stderr)
+        sys.exit(1)
+
     # 读取源文件
     source_path = Path(args.source)
     if not source_path.exists():
