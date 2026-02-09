@@ -27,15 +27,15 @@ if ($ActualSuffix -ne $ExpectedSuffix) {
 }
 
 # Create .cursor/rules/ if not exists
-$RulesDir = Join-Path $ProjectRoot ".cursor" "rules"
+$RulesDir = [IO.Path]::Combine($ProjectRoot, ".cursor", "rules")
 if (-not (Test-Path $RulesDir)) {
     New-Item -ItemType Directory -Path $RulesDir -Force | Out-Null
     Write-Host "[OK] Created $RulesDir"
 }
 
 # Copy .mdc to rules directory
-$MdcSource = Join-Path $SkillRoot "cursor" "structured-extractor.mdc"
-$MdcTarget = Join-Path $RulesDir "structured-extractor.mdc"
+$MdcSource = [IO.Path]::Combine($SkillRoot, "cursor", "structured-extractor.mdc")
+$MdcTarget = [IO.Path]::Combine($RulesDir, "structured-extractor.mdc")
 
 if (-not (Test-Path $MdcSource)) {
     Write-Host "[ERROR] .mdc file not found: $MdcSource" -ForegroundColor Red
