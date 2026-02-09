@@ -284,6 +284,9 @@ structured-extractor/
 +-- cursor/                         # Cursor IDE rules
 |   +-- structured-extractor.mdc   #   Cursor-compatible .mdc rules file
 |
++-- install.ps1                     # Cursor installer (Windows PowerShell)
++-- install.sh                      # Cursor installer (macOS / Linux)
+|
 +-- assets/presets/                  # Preset configurations
 |   +-- code-logic.json             #   C# / Python / JS code analysis
 |   +-- doc-structure.json          #   Document structure extraction
@@ -334,20 +337,42 @@ In Claude Code, you can invoke the skill directly:
 
 Or Claude Code will automatically trigger it when you ask for structured extraction tasks.
 
-### Install as a Cursor IDE Rule
+### Install as a Cursor IDE Rule (Standalone)
+
+Cursor users can install the **complete skill** without Claude Code. The install script clones the full repo and sets up Cursor's `.mdc` rule automatically.
 
 ```bash
-# Clone the repository
-git clone https://github.com/sputnicyoji/structured-extractor.git
+# 1. Clone into the standard skill location
+cd your-project
+git clone https://github.com/sputnicyoji/Structured-Extractor .cursor/skills/structured-extractor
 
-# Copy the .mdc file into your project's Cursor rules directory
-mkdir -p your-project/.cursor/rules
-cp structured-extractor/cursor/structured-extractor.mdc your-project/.cursor/rules/
+# 2. Run the installer (copies .mdc to .cursor/rules/)
+# Windows PowerShell:
+.cursor/skills/structured-extractor/install.ps1
+
+# macOS / Linux:
+bash .cursor/skills/structured-extractor/install.sh
 ```
 
-The `.mdc` file uses Cursor's rules format with YAML frontmatter (`description`, `globs`, `alwaysApply`). Cursor will load this rule when relevant extraction tasks are detected.
+**Or as a git submodule** (recommended for version-controlled projects):
 
-> **Note**: The Cursor version contains the same extraction rules and pipeline instructions as the Claude Code skill. The Python pipeline scripts are shared -- copy the `scripts/` and `assets/` directories as well if you need local post-processing.
+```bash
+git submodule add https://github.com/sputnicyoji/Structured-Extractor .cursor/skills/structured-extractor
+bash .cursor/skills/structured-extractor/install.sh
+```
+
+After installation, the directory structure is:
+
+```
+your-project/
++-- .cursor/
+    +-- rules/
+    |   +-- structured-extractor.mdc   <-- Cursor loads this
+    +-- skills/
+        +-- structured-extractor/      <-- Full skill (references + scripts + presets)
+```
+
+The `.mdc` rule references files from `.cursor/skills/structured-extractor/`, so the AI can read few-shot templates, run the Python pipeline, and access all reference documentation -- **no Claude Code required**.
 
 ---
 
@@ -356,6 +381,29 @@ The `.mdc` file uses Cursor's rules format with YAML frontmatter (`description`,
 ### How It Works
 
 Cursor uses `.mdc` (Markdown Cursor) files in `.cursor/rules/` as project-level AI rules. The `structured-extractor.mdc` file teaches Cursor's AI assistant the same structured extraction methodology as the Claude Code skill.
+
+**Key difference from the old approach**: The `.mdc` file is no longer a standalone copy -- it references the full skill directory at `.cursor/skills/structured-extractor/`. This means Cursor gets access to:
+- `references/` -- extraction types, few-shot templates, output schema, algorithm docs
+- `scripts/` -- the Python post-processing pipeline
+- `assets/presets/` -- preset configurations for different file types
+
+### Installation Methods
+
+| Method | Command | Best For |
+|--------|---------|----------|
+| **Git clone** | `git clone ... .cursor/skills/structured-extractor` | Quick setup |
+| **Git submodule** | `git submodule add ... .cursor/skills/structured-extractor` | Team projects |
+| **Manual copy** | Copy entire repo to `.cursor/skills/structured-extractor/` | Offline use |
+
+After cloning, run the install script to copy `.mdc` to `.cursor/rules/`:
+
+```bash
+# Windows
+.cursor/skills/structured-extractor/install.ps1
+
+# macOS / Linux
+bash .cursor/skills/structured-extractor/install.sh
+```
 
 ### Configuration
 
@@ -383,15 +431,16 @@ globs: ["*.cs", "*.py", "*.ts", "*.md"]
 alwaysApply: false
 ```
 
-### Differences from Claude Code
+### Cursor vs Claude Code
 
 | Feature | Claude Code (SKILL.md) | Cursor (.mdc) |
 |---------|----------------------|---------------|
-| Location | `.claude/skills/structured-extractor/` | `.cursor/rules/` |
-| Format | YAML frontmatter + Markdown | YAML frontmatter + Markdown |
+| Skill location | `.claude/skills/structured-extractor/` | `.cursor/skills/structured-extractor/` |
+| Rule file | `SKILL.md` (auto-detected) | `.cursor/rules/structured-extractor.mdc` (installed by script) |
 | Trigger | `description` field + `/skill` invocation | `description` + `globs` + `alwaysApply` |
-| References | `references/` directory (lazy-loaded) | Single file (all-in-one) |
-| Pipeline | Shared `scripts/` directory | Shared `scripts/` directory |
+| Reference access | Relative paths from `SKILL.md` | Full paths from `.cursor/skills/` root |
+| Pipeline | Same `scripts/pipeline.py` | Same `scripts/pipeline.py` |
+| Install | Copy to `.claude/skills/` | Clone + run `install.ps1` / `install.sh` |
 
 ---
 
@@ -546,15 +595,22 @@ git clone https://github.com/sputnicyoji/structured-extractor.git
 cp -r structured-extractor/ your-project/.claude/skills/structured-extractor/
 ```
 
-### Cursor IDE
+### Cursor IDE (独立安装，无需 Claude Code)
 
 ```bash
-# 复制 .mdc 规则文件到 Cursor 规则目录
-mkdir -p your-project/.cursor/rules
-cp structured-extractor/cursor/structured-extractor.mdc your-project/.cursor/rules/
+# 1. 克隆完整技能到项目的 .cursor/skills/ 目录
+cd your-project
+git clone https://github.com/sputnicyoji/Structured-Extractor .cursor/skills/structured-extractor
+
+# 2. 运行安装脚本 (自动复制 .mdc 到 .cursor/rules/)
+# Windows PowerShell:
+.cursor/skills/structured-extractor/install.ps1
+
+# macOS / Linux:
+bash .cursor/skills/structured-extractor/install.sh
 ```
 
-`.mdc` 文件支持三个配置项: `description` (触发描述), `globs` (文件匹配模式), `alwaysApply` (是否始终加载)。
+安装后 `.mdc` 规则文件会引用 `.cursor/skills/structured-extractor/` 下的所有资源 (references, scripts, presets)，Cursor 的 AI 可以完整使用提取类型定义、Few-shot 模板和 Python 管道。
 
 ## 使用方法
 
@@ -676,15 +732,22 @@ git clone https://github.com/sputnicyoji/structured-extractor.git
 cp -r structured-extractor/ your-project/.claude/skills/structured-extractor/
 ```
 
-### Cursor IDE
+### Cursor IDE (スタンドアロンインストール、Claude Code 不要)
 
 ```bash
-# .mdc ルールファイルを Cursor ルールディレクトリにコピー
-mkdir -p your-project/.cursor/rules
-cp structured-extractor/cursor/structured-extractor.mdc your-project/.cursor/rules/
+# 1. プロジェクトの .cursor/skills/ にクローン
+cd your-project
+git clone https://github.com/sputnicyoji/Structured-Extractor .cursor/skills/structured-extractor
+
+# 2. インストールスクリプトを実行 (.mdc を .cursor/rules/ にコピー)
+# Windows PowerShell:
+.cursor/skills/structured-extractor/install.ps1
+
+# macOS / Linux:
+bash .cursor/skills/structured-extractor/install.sh
 ```
 
-`.mdc` ファイルは3つの設定項目をサポート: `description` (トリガー説明), `globs` (ファイルパターン), `alwaysApply` (常時ロード)。
+インストール後、`.mdc` ルールファイルは `.cursor/skills/structured-extractor/` 配下の全リソース (references, scripts, presets) を参照します。Cursor の AI は抽出タイプ定義、Few-shot テンプレート、Python パイプラインを完全に利用できます。
 
 ## 使用方法
 

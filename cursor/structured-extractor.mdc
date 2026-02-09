@@ -8,10 +8,27 @@ alwaysApply: false
 
 > Universal structured information extraction | Built on Google LangExtract's algorithm layer | 5-step pipeline + 3 output formats
 
+## Skill Root (IMPORTANT)
+
+This skill is installed at: **`.cursor/skills/structured-extractor/`**
+
+When referencing any file below, prefix with this path. For example:
+- `references/few-shot-templates.md` → `.cursor/skills/structured-extractor/references/few-shot-templates.md`
+- `scripts/pipeline.py` → `.cursor/skills/structured-extractor/scripts/pipeline.py`
+
+| Resource | Path |
+|----------|------|
+| Few-shot templates | `.cursor/skills/structured-extractor/references/few-shot-templates.md` |
+| Extraction types | `.cursor/skills/structured-extractor/references/extraction-types.md` |
+| Output schema | `.cursor/skills/structured-extractor/references/output-schema.md` |
+| Pipeline docs | `.cursor/skills/structured-extractor/references/post-processing.md` |
+| Pipeline script | `.cursor/skills/structured-extractor/scripts/pipeline.py` |
+| Presets dir | `.cursor/skills/structured-extractor/assets/presets/` |
+
 ## Core Rules (CRITICAL)
 
-1. **Never skip Few-shot** - Extractions MUST follow the template format below
-2. **Never free-form output** - Strictly follow the JSON schema defined below
+1. **Never skip Few-shot** - Extractions MUST follow the template format in `references/few-shot-templates.md`
+2. **Never free-form output** - Strictly follow the JSON schema in `references/output-schema.md`
 3. **Never skip post-processing** - Raw extractions MUST go through `scripts/pipeline.py`
 4. **Never output low quality** - Filter extractions with `confidence < 0.3` regardless of output format
 
@@ -68,8 +85,10 @@ I need to extract structured information from text?
 
 ### Step 1: Select preset
 
+Read the appropriate preset from the skill root:
+
 ```
-Presets: assets/presets/{preset-name}.json
+.cursor/skills/structured-extractor/assets/presets/
   code-logic.json       Focus: rule, event, state, constraint
   doc-structure.json    Focus: entity, relation, rule, constraint
   log-analysis.json     Focus: event, state, constraint
@@ -77,27 +96,37 @@ Presets: assets/presets/{preset-name}.json
 
 ### Step 2: Extract with AI
 
-Follow the extraction types above. For each item found:
+Read `.cursor/skills/structured-extractor/references/few-shot-templates.md` for examples.
+
+For each item found:
 - `text` MUST be an exact substring from the original source (not rewritten)
 - `summary_cn` is the human-readable summary
-- `attributes` varies by type
+- `attributes` varies by type (see `references/extraction-types.md`)
 
 ### Step 3: Save raw JSON
 
 Save Claude/AI extractions to a temporary JSON file.
 
+**Input format**: Accepts both:
+- Array: `[{"id": "ext_001", ...}, ...]`
+- Object: `{"extractions": [{"id": "ext_001", ...}, ...]}`
+
 ### Step 4: Run pipeline
 
 ```bash
 # Basic
-python scripts/pipeline.py --input raw.json --source code.cs --output result.json
+python .cursor/skills/structured-extractor/scripts/pipeline.py \
+  --input raw.json --source code.cs --output result.json
 
 # With preset
-python scripts/pipeline.py --input raw.json --source code.cs \
-  --config assets/presets/code-logic.json --output result.json
+python .cursor/skills/structured-extractor/scripts/pipeline.py \
+  --input raw.json --source code.cs \
+  --config .cursor/skills/structured-extractor/assets/presets/code-logic.json \
+  --output result.json
 
 # Full pipeline
-python scripts/pipeline.py --input raw.json --source code.cs \
+python .cursor/skills/structured-extractor/scripts/pipeline.py \
+  --input raw.json --source code.cs \
   --enable-entity-resolution --enable-relation-inference \
   --output result.json
 ```
@@ -121,6 +150,8 @@ After pipeline completes, ask user which format(s) they want:
 4. Entity Resolution -> Merge similar entities (optional)
 5. Relation Inference -> Infer co-occurrence relations (optional)
 ```
+
+For algorithm details, read `.cursor/skills/structured-extractor/references/post-processing.md`.
 
 ## Key Principles
 
