@@ -1,19 +1,19 @@
 ---
-description: "Structured information extraction expert. Use when: extracting business rules, event flows, state machines, constraints, entities, and relations from code/docs/logs. Provides: (1) 6 extraction type framework (2) Few-shot templates (3) 6-step Python post-processing pipeline."
+description: "Structured information extraction expert. Use when: extracting business rules, event flows, state machines, constraints, entities, and relations from code/docs/logs. Provides: (1) 6 extraction type framework (2) Few-shot templates (3) 5-step Python post-processing pipeline (4) 3 output formats (JSON/Markdown/Knowledge Graph)."
 globs: []
 alwaysApply: false
 ---
 
 # Structured Extractor
 
-> Universal structured information extraction | Built on Google LangExtract's algorithm layer | 6-step pipeline
+> Universal structured information extraction | Built on Google LangExtract's algorithm layer | 5-step pipeline + 3 output formats
 
 ## Core Rules (CRITICAL)
 
 1. **Never skip Few-shot** - Extractions MUST follow the template format below
 2. **Never free-form output** - Strictly follow the JSON schema defined below
 3. **Never skip post-processing** - Raw extractions MUST go through `scripts/pipeline.py`
-4. **Never inject low quality** - Filter extractions with `confidence < 0.3`
+4. **Never output low quality** - Filter extractions with `confidence < 0.3` regardless of output format
 
 ## Extraction Types
 
@@ -55,13 +55,13 @@ I need to extract structured information from text?
     |
     +-- Which post-processing?
     |   +-- Basic (default) -> Grounding + Dedup + Scoring
-    |   +-- Full            -> All 6 steps
+    |   +-- Full            -> All 5 steps
     |   +-- Minimal         -> Scoring only
     |
-    +-- Output purpose?
-        +-- Generate report    -> Output Markdown
-        +-- Supplement docs    -> Output to docs/
-        +-- Update knowledge   -> Enable KG Injection
+    +-- Output format? (ask user after pipeline)
+        +-- JSON file       -> Save pipeline output (default, always available)
+        +-- Markdown report -> Generate human-readable .md (always available)
+        +-- KG injection    -> Call aim_create_entities (requires KG MCP tools)
 ```
 
 ## Workflow
@@ -99,12 +99,18 @@ python scripts/pipeline.py --input raw.json --source code.cs \
 # Full pipeline
 python scripts/pipeline.py --input raw.json --source code.cs \
   --enable-entity-resolution --enable-relation-inference \
-  --enable-kg-injection --output result.json
+  --output result.json
 ```
 
-### Step 5: Use results
+### Step 5: Choose output format
 
-Read the output JSON and generate: Markdown reports, knowledge graph entities, or documentation supplements.
+After pipeline completes, ask user which format(s) they want:
+
+| Format | Description | Dependency |
+|--------|-------------|------------|
+| **JSON file** | Save pipeline output as `.json` | None (always available) |
+| **Markdown report** | Human-readable `.md` report | None (always available) |
+| **KG injection** | Call `aim_create_entities` | Requires KG MCP tools |
 
 ## Pipeline Steps
 
@@ -114,7 +120,6 @@ Read the output JSON and generate: Markdown reports, knowledge graph entities, o
 3. Confidence Score  -> 4-dimension quality scoring
 4. Entity Resolution -> Merge similar entities (optional)
 5. Relation Inference -> Infer co-occurrence relations (optional)
-6. KG Injection      -> Convert to knowledge graph format (optional)
 ```
 
 ## Key Principles
@@ -133,3 +138,4 @@ Read the output JSON and generate: Markdown reports, knowledge graph entities, o
 | "No need to run pipeline.py" | Raw extractions lack location and confidence |
 | "I'll write location manually" | Location is computed by Source Grounding algorithm |
 | "Set all confidence to 1.0" | Confidence is computed by 4-dimension algorithm |
+| "Just inject into KG directly" | User may not have KG tools; ask for output format first |

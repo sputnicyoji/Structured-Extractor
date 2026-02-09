@@ -60,7 +60,7 @@ That is exactly what structured-extractor does: it takes LangExtract's Source Gr
 
 - **6 extraction types**: rule, event, state, constraint, entity, relation
 - **3 preset configurations**: code-logic, doc-structure, log-analysis
-- **6-step pipeline**: Source Grounding, Overlap Dedup, Confidence Scoring, Entity Resolution, Relation Inference, KG Injection
+- **5-step pipeline + 3 output formats**: Source Grounding, Overlap Dedup, Confidence Scoring, Entity Resolution, Relation Inference -- then output as JSON, Markdown, or Knowledge Graph
 - **Zero external dependencies**: Python standard library only
 - **No API keys needed**: Uses Claude Code's built-in AI capabilities
 - **Fast**: 1000 extractions against a 500-line source file in under 1 second
@@ -243,13 +243,15 @@ The post-processing pipeline transforms raw Claude extractions into high-quality
   +------+---------+
          |
          v
-  +------+---------+
-  | KG Injection   |   Step 6 (optional): Convert to
-  |                |   knowledge graph format
-  +------+---------+
+  Structured Output (JSON)
          |
          v
-  Structured Output (JSON)
+  +------+---------+
+  | Output Format  |   Choose one or more:
+  | Selection      |   - JSON file (.json)
+  |                |   - Markdown report (.md)
+  |                |   - Knowledge Graph (if available)
+  +------+---------+
 ```
 
 ### Pipeline Steps in Detail
@@ -261,7 +263,14 @@ The post-processing pipeline transforms raw Claude extractions into high-quality
 | 3. Confidence Scoring | `confidence_scorer.py` | 4-dimension weighted score: `match_quality` (35%) + `attr_completeness` (25%) + `text_specificity` (20%) + `type_consistency` (20%). |
 | 4. Entity Resolution | `entity_resolver.py` | Optional. Greedy clustering algorithm using `difflib` similarity to merge references to the same logical entity. |
 | 5. Relation Inference | `relation_inferrer.py` | Optional. Rule-based inference of relations between entities based on co-occurrence patterns in source text. |
-| 6. KG Injection | `kg_injector.py` | Optional. Converts structured extractions into knowledge graph format (entities + relations + observations). |
+
+After the pipeline completes, you choose one or more **output formats**:
+
+| Format | Description |
+|--------|-------------|
+| **JSON file** | Save pipeline output as `.json` -- always available, machine-readable |
+| **Markdown report** | Generate a human-readable `.md` file grouped by extraction type |
+| **Knowledge Graph** | Inject into KG via `aim_create_entities` / MCP tools (requires KG tooling) |
 
 ---
 
@@ -518,7 +527,7 @@ structured-extractor 将 LangExtract 的 Source Grounding 和去重算法提取�
 
 - **6 种提取类型**: rule (规则), event (事件), state (状态), constraint (约束), entity (实体), relation (关系)
 - **3 种预设配置**: 代码逻辑分析、文档结构提取、日志分析
-- **6 步处理管道**: 源码定位 -> 重叠去重 -> 置信度评分 -> 实体消歧 -> 关系推断 -> 知识图谱注入
+- **5 步处理管道 + 3 种输出**: 源码定位 -> 重叠去重 -> 置信度评分 -> 实体消歧 -> 关系推断 -> 输出为 JSON / Markdown / 知识图谱
 - **零外部依赖**: 仅使用 Python 标准库
 - **无需 API 密钥**: 直接使用 Claude Code 内置 AI
 
@@ -571,7 +580,11 @@ Claude AI 提取 -> JSON -> Python 管道 (6 步后处理) -> 结构化输出
                       + 文本特异性(20%) + 类型一致性(20%)
 步骤 4: 实体消歧    - (可选) 基于 difflib 的贪心聚类
 步骤 5: 关系推断    - (可选) 基于共现的规则推断
-步骤 6: 知识图谱注入 - (可选) 转换为知识图谱格式
+
+输出格式 (完成后选择):
+  - JSON 文件     - 保存为 .json (始终可用)
+  - Markdown 报告 - 生成可读的 .md 文件 (始终可用)
+  - 知识图谱注入  - 写入 KG (需要 KG 工具)
 ```
 
 ## 性能
@@ -640,7 +653,7 @@ structured-extractor は LangExtract の Source Grounding と重複排除アル�
 
 - **6 種類の抽出タイプ**: rule (ルール), event (イベント), state (状態), constraint (制約), entity (エンティティ), relation (関係)
 - **3 種類のプリセット設定**: コードロジック分析、ドキュメント構造抽出、ログ分析
-- **6 段階パイプライン**: ソース位置特定 -> 重複排除 -> 信頼度スコアリング -> エンティティ解決 -> 関係推論 -> ナレッジグラフ注入
+- **5 段階パイプライン + 3 出力形式**: ソース位置特定 -> 重複排除 -> 信頼度スコアリング -> エンティティ解決 -> 関係推論 -> JSON / Markdown / ナレッジグラフ出力
 - **外部依存ゼロ**: Python 標準ライブラリのみ使用
 - **API キー不要**: Claude Code 内蔵の AI をそのまま利用
 
@@ -693,7 +706,11 @@ Step 3: 信頼度スコアリング - 4次元加重: 一致品質(35%) + 属性�
                            + テキスト特異性(20%) + 型一貫性(20%)
 Step 4: エンティティ解決  - (任意) difflib ベースの貪欲クラスタリング
 Step 5: 関係推論         - (任意) 共起ベースのルール推論
-Step 6: KG 注入          - (任意) ナレッジグラフ形式への変換
+
+出力形式 (完了後に選択):
+  - JSON ファイル       - .json として保存 (常に利用可能)
+  - Markdown レポート   - 可読な .md ファイルを生成 (常に利用可能)
+  - ナレッジグラフ注入   - KG に書き込み (KG ツールが必要)
 ```
 
 ## パフォーマンス

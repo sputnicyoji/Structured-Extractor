@@ -146,11 +146,25 @@ confidence = sum(weight_i * score_i) for i in 4 dimensions
 
 ---
 
-## 6. KG Injection (知识图谱注入)
+## 6. 输出格式 (Output Formatting)
+
+Pipeline 完成后，支持三种输出格式。**必须询问用户选择**（可多选）:
+
+### 6a. JSON 文件 (始终可用)
+
+Pipeline 的原始输出，保存为 `.json` 文件。这是核心格式，Markdown 和 KG 都从这里转换。
+
+### 6b. Markdown 报告 (始终可用)
+
+由 AI 将 JSON 转换为人类可读的结构化报告，按 extraction type 分组，包含源码位置和置信度。
+
+### 6c. KG Injection (需要 KG 工具)
 
 **脚本**: `scripts/kg_injector.py`
 
 **目的**: 将高质量提取转换为知识图谱格式
+
+**前提**: 用户环境中有知识图谱 MCP 工具 (如 `aim_create_entities`)
 
 **过滤规则**: confidence < 阈值 (默认 0.3) 的提取不注入
 
@@ -205,11 +219,13 @@ confidence = sum(weight_i * score_i) for i in 4 dimensions
 
 ### 按场景配置
 
-| 场景 | grounding | dedup | scoring | entity_res | rel_infer | kg |
-|------|-----------|-------|---------|------------|-----------|-----|
-| code-logic | on | on | on | off | off | off |
-| doc-structure | on | on | on | on | on | on |
-| log-analysis | on | on | on | off | off | off |
+| 场景 | grounding | dedup | scoring | entity_res | rel_infer |
+|------|-----------|-------|---------|------------|-----------|
+| code-logic | on | on | on | off | off |
+| doc-structure | on | on | on | on | on |
+| log-analysis | on | on | on | off | off |
+
+**输出格式在 pipeline 完成后单独选择** (JSON / Markdown / KG)，不属于 pipeline 配置。
 
 ### CLI 用法
 
