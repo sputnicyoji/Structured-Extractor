@@ -407,6 +407,10 @@ python scripts/pipeline.py \
   --output result.json
 ```
 
+**Input format**: `--input` accepts both formats:
+- Array: `[{"id": "ext_001", ...}, ...]`
+- Object: `{"extractions": [{"id": "ext_001", ...}, ...]}`
+
 ### With Preset Configuration
 
 ```bash
@@ -426,7 +430,6 @@ python scripts/pipeline.py \
   --source code.cs \
   --enable-entity-resolution \
   --enable-relation-inference \
-  --enable-kg-injection \
   --output result.json
 ```
 
@@ -566,8 +569,12 @@ python scripts/pipeline.py --input raw.json --source code.cs \
 # 完整管道
 python scripts/pipeline.py --input raw.json --source code.cs \
   --enable-entity-resolution --enable-relation-inference \
-  --enable-kg-injection --output result.json
+  --output result.json
 ```
+
+**输入格式**: `--input` 同时支持两种 JSON 格式:
+- 纯数组: `[{"id": "ext_001", ...}, ...]`
+- 对象包装: `{"extractions": [{"id": "ext_001", ...}, ...]}`
 
 ## 管道流程
 
@@ -692,8 +699,12 @@ python scripts/pipeline.py --input raw.json --source code.cs \
 # 全パイプラインを有効化
 python scripts/pipeline.py --input raw.json --source code.cs \
   --enable-entity-resolution --enable-relation-inference \
-  --enable-kg-injection --output result.json
+  --output result.json
 ```
+
+**入力形式**: `--input` は2つの JSON 形式をサポート:
+- 配列: `[{"id": "ext_001", ...}, ...]`
+- オブジェクト: `{"extractions": [{"id": "ext_001", ...}, ...]}`
 
 ## パイプライン
 
